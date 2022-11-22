@@ -14,8 +14,12 @@ import torch.nn.functional as F
 import tqdm
 from radiance_fields.ngp import NGPradianceField
 from utils import render_image, set_random_seed
-
+#Change line 90 for location
 from nerfacc import ContractionType, OccupancyGrid
+
+
+
+
 
 if __name__ == "__main__":
 
@@ -214,6 +218,7 @@ if __name__ == "__main__":
 
             # update occupancy grid
             occupancy_grid.every_n_step(step=step, occ_eval_fn=occ_eval_fn)
+            print("Just after occupancy", flush = True)
 
             # render
             rgb, acc, depth, n_rendering_samples = render_image(
@@ -240,7 +245,7 @@ if __name__ == "__main__":
             )
             train_dataset.update_num_rays(num_rays)
             alive_ray_mask = acc.squeeze(-1) > 0
-
+            print("Just before loss", flush = True)
             # compute loss
             loss = F.smooth_l1_loss(rgb[alive_ray_mask], pixels[alive_ray_mask])
 
@@ -254,7 +259,7 @@ if __name__ == "__main__":
                 elapsed_time = time.time() - tic
                 loss = F.mse_loss(rgb[alive_ray_mask], pixels[alive_ray_mask])
                 print(
-                    f"elapsed_time={elapsed_time:.2f}s | step={step} | "
+                    f"elapsed_time={elapsed_time:.2f}s | {step=} | "
                     f"loss={loss:.5f} | "
                     f"alive_ray_mask={alive_ray_mask.long().sum():d} | "
                     f"n_rendering_samples={n_rendering_samples:d} | num_rays={len(pixels):d} |", flush = True
@@ -291,17 +296,17 @@ if __name__ == "__main__":
                         mse = F.mse_loss(rgb, pixels)
                         psnr = -10.0 * torch.log(mse) / np.log(10.0)
                         psnrs.append(psnr.item())
-                        imageio.imwrite(
-                            "acc_binary_test.png",
-                            ((acc > 0).float().cpu().numpy() * 255).astype(np.uint8),
-                        )
-                        imageio.imwrite(
-                            "rgb_test.png",
-                            (rgb.cpu().numpy() * 255).astype(np.uint8),
-                        )
-                        break
+                        # imageio.imwrite(
+                        #     "acc_binary_test.png",
+                        #     ((acc > 0).float().cpu().numpy() * 255).astype(np.uint8),
+                        # )
+                        # imageio.imwrite(
+                        #     "rgb_test.png",
+                        #     (rgb.cpu().numpy() * 255).astype(np.uint8),
+                        # )
+                        # break
                 psnr_avg = sum(psnrs) / len(psnrs)
-                print(f"evaluation: psnr_avg={psnr_avg}", flush = True)
+                print(f"evaluation: {psnr_avg=}", flush = True)
                 train_dataset.training = True
 
             if step == max_steps:

@@ -1,0 +1,5 @@
+elapsed_time=2.28s | step=0 | loss=0.07351 | alive_ray_mask=256 | n_rendering_samples=66748 | num_rays=256 |
+elapsed_time=111.26s | step=10000 | loss=0.00055 | alive_ray_mask=15897 | n_rendering_samples=263992 | num_rays=47891 |
+elapsed_time=223.44s | step=20000 | loss=0.00039 | alive_ray_mask=16515 | n_rendering_samples=261267 | num_rays=50693 |
+evaluation: psnr_avg=37.10834503173828
+training stops

@@ -1,13 +1,16 @@
 """
-Copyright (c) 2022 Ruilong Li, UC Berkeley.
+This program contains the main NGP Class, no need to change
+
 """
 
-from typing import Callable, List, Union
 
+from typing import Callable, List, Union
+from collections import OrderedDict
 import torch
 from torch.autograd import Function
 from torch.cuda.amp import custom_bwd, custom_fwd
 
+#check installation of tinycudann
 try:
     import tinycudann as tcnn
 except ImportError as e:
@@ -18,6 +21,7 @@ except ImportError as e:
     )
     exit()
 
+#Force grid encoder to use float32 (optimization) :: don't change
 
 class _TruncExp(Function):  # pylint: disable=abstract-method
     # Implementation from torch-ngp:
@@ -34,16 +38,17 @@ class _TruncExp(Function):  # pylint: disable=abstract-method
         x = ctx.saved_tensors[0]
         return g * torch.exp(torch.clamp(x, max=15))
 
-
 trunc_exp = _TruncExp.apply
 
 
+# fix query density to unisphere if unbounded:: don't change
 def contract_to_unisphere(
     x: torch.Tensor,
     aabb: torch.Tensor,
     eps: float = 1e-6,
     derivative: bool = False,
 ):
+    #splits the tensor into two 3d tensors
     aabb_min, aabb_max = torch.split(aabb, 3, dim=-1)
     x = (x - aabb_min) / (aabb_max - aabb_min)
     x = x * 2 - 1  # aabb is at [-1, 1]
@@ -63,6 +68,7 @@ def contract_to_unisphere(
         return x
 
 
+# Instant NGP Class model:: Check if chanage is needed, functions: query_rgb, query_density (Forward requirement)
 class NGPradianceField(torch.nn.Module):
     """Instance-NGP radiance Field"""
 
@@ -105,9 +111,8 @@ class NGPradianceField(torch.nn.Module):
                 },
             )
 
-        self.mlp_base = tcnn.NetworkWithInputEncoding(
+        self.mlp_base_1 = tcnn.Encoding(
             n_input_dims=num_dim,
-            n_output_dims=1 + self.geo_feat_dim,
             encoding_config={
                 "otype": "HashGrid",
                 "n_levels": n_levels,
@@ -116,6 +121,10 @@ class NGPradianceField(torch.nn.Module):
                 "base_resolution": 16,
                 "per_level_scale": per_level_scale,
             },
+        )
+        self.mlp_base_2 = tcnn.Network(
+            n_input_dims=self.mlp_base_1.n_output_dims,
+            n_output_dims= 1+self.geo_feat_dim,
             network_config={
                 "otype": "FullyFusedMLP",
                 "activation": "ReLU",
@@ -124,6 +133,21 @@ class NGPradianceField(torch.nn.Module):
                 "n_hidden_layers": 1,
             },
         )
+        # self.mlp_base_3 = tcnn.Network(
+        #     n_input_dims= 1+self.geo_feat_dim,
+        #     n_output_dims=1 + self.geo_feat_dim,
+        #     network_config={
+        #         "otype": "FullyFusedMLP",
+        #         "activation": "ReLU",
+        #         "output_activation": "None",
+        #         "n_neurons": 1+self.geo_feat_dim,
+        #         "n_hidden_layers": 1,
+        #     },
+        # )
+        self.mlp_base = torch.nn.Sequential(self.mlp_base_1, self.mlp_base_2)
+
+
+
         if self.geo_feat_dim > 0:
             self.mlp_head = tcnn.Network(
                 n_input_dims=(
@@ -182,6 +206,175 @@ class NGPradianceField(torch.nn.Module):
             .to(embedding)
         )
         return rgb
+
+    def forward(
+        self,
+        positions: torch.Tensor,
+        directions: torch.Tensor = None,
+    ):
+        if self.use_viewdirs and (directions is not None):
+            assert (
+                positions.shape == directions.shape
+            ), f"{positions.shape} v.s. {directions.shape}"
+            density, embedding = self.query_density(positions, return_feat=True)
+            rgb = self._query_rgb(directions, embedding=embedding)
+        return rgb, density
+
+# New class for the ESDF
+class NewESDF(torch.nn.Module):
+    """Just for ESDF from Density"""
+
+    def __init__(
+        self,
+        aabb: Union[torch.Tensor, List[float]],
+        num_dim: int = 3,
+        use_viewdirs: bool = True,
+        density_activation: Callable = lambda x: trunc_exp(x - 1),
+        unbounded: bool = False,
+        radius_dim: int = 5,
+        geo_feat_dim: int = 15,
+        n_levels: int = 16,
+        log2_hashmap_size: int = 19,
+        new_tensor: torch.Tensor = torch.full((1, 5), 25.0, dtype=torch.float32)
+    ) -> None:
+        super().__init__()
+        if not isinstance(aabb, torch.Tensor):
+            aabb = torch.tensor(aabb, dtype=torch.float32)
+        self.register_buffer("aabb", aabb)
+        self.num_dim = num_dim
+        self.use_viewdirs = use_viewdirs
+        self.density_activation = density_activation
+        self.unbounded = unbounded
+        self.radius_dim = radius_dim
+
+        self.new_tensor = new_tensor
+        self.new_tensor = self.new_tensor.reshape((1,5))
+
+        self.geo_feat_dim = geo_feat_dim
+        per_level_scale = 1.4472692012786865
+
+        if self.use_viewdirs:
+            self.direction_encoding = tcnn.Encoding(
+                n_input_dims=num_dim,
+                encoding_config={
+                    "otype": "Composite",
+                    "nested": [
+                        {
+                            "n_dims_to_encode": 3,
+                            "otype": "SphericalHarmonics",
+                            "degree": 4,
+                        },
+                        # {"otype": "Identity", "n_bins": 4, "degree": 4},
+                    ],
+                },
+            )
+
+
+        self.mlp_base_1 = tcnn.Encoding(
+            n_input_dims=num_dim,
+            encoding_config={
+                "otype": "HashGrid",
+                "n_levels": n_levels,
+                "n_features_per_level": 2,
+                "log2_hashmap_size": log2_hashmap_size,
+                "base_resolution": 16,
+                "per_level_scale": per_level_scale,
+            },
+        )
+        self.mlp_base_2 = tcnn.Network(
+            n_input_dims=self.mlp_base_1.n_output_dims,
+            n_output_dims= 1+self.geo_feat_dim,
+            network_config={
+                "otype": "FullyFusedMLP",
+                "activation": "ReLU",
+                "output_activation": "ReLU",
+                "n_neurons": 64,
+                "n_hidden_layers": 1,
+            },
+        )
+        #sigmoid for last layer, adding the dimension for radius
+        self.mlp_base_3 = tcnn.Network(
+            n_input_dims= 1+self.geo_feat_dim + self.radius_dim,
+            n_output_dims=1 + self.geo_feat_dim,
+            network_config={
+                "otype": "FullyFusedMLP",
+                "activation": "ReLU",
+                "output_activation": "Sigmoid", #to get the logits
+                "n_neurons": 1+self.geo_feat_dim,
+                "n_hidden_layers": 1,
+            },
+        )
+        self.mlp_base = torch.nn.Sequential(self.mlp_base_1, self.mlp_base_2)
+
+        if self.geo_feat_dim > 0:
+            self.mlp_head = tcnn.Network(
+                n_input_dims=(
+                    (
+                        self.direction_encoding.n_output_dims
+                        if self.use_viewdirs
+                        else 0
+                    )
+                    + self.geo_feat_dim
+                ),
+                n_output_dims=3,
+                network_config={
+                    "otype": "FullyFusedMLP",
+                    "activation": "ReLU",
+                    "output_activation": "Sigmoid",
+                    "n_neurons": 64,
+                    "n_hidden_layers": 2,
+                },
+            )
+
+
+    def query_density(self, x, return_feat: bool = False):
+        if self.unbounded:
+            x = contract_to_unisphere(x, self.aabb)
+        else:
+            aabb_min, aabb_max = torch.split(self.aabb, self.num_dim, dim=-1)
+            x = (x - aabb_min) / (aabb_max - aabb_min)
+        selector = ((x > 0.0) & (x < 1.0)).all(dim=-1)
+        # print("new_tensor", self.new_tensor.shape, flush=True)
+        # print("old_tensor",self.mlp_base(x.view(-1, self.num_dim)).shape, flush=True)
+
+        if self.new_tensor.shape[0] == 1:
+            self.new_tensor = self.new_tensor.expand(x.shape[0], 5)
+        else:
+            self.new_tensor = self.new_tensor.mean(dim=0)
+            self.new_tensor = self.new_tensor.expand(x.shape[0], 5)
+
+        x = (
+            self.mlp_base_3(torch.cat((self.mlp_base(x.view(-1, self.num_dim)), self.new_tensor), dim=1))
+            .view(list(x.shape[:-1]) + [1 + self.geo_feat_dim])
+            .to(x)
+        )
+        density_before_activation, base_mlp_out = torch.split(
+            x, [1, self.geo_feat_dim], dim=-1
+        )
+        density = (
+            self.density_activation(density_before_activation)
+            * selector[..., None]
+        )
+        if return_feat:
+            return density, base_mlp_out
+        else:
+            return density
+
+    def _query_rgb(self, dir, embedding):
+            # tcnn requires directions in the range [0, 1]
+        if self.use_viewdirs:
+            dir = (dir + 1.0) / 2.0
+            d = self.direction_encoding(dir.view(-1, dir.shape[-1]))
+            h = torch.cat([d, embedding.view(-1, self.geo_feat_dim)], dim=-1)
+        else:
+            h = embedding.view(-1, self.geo_feat_dim)
+        rgb = (
+            self.mlp_head(h)
+            .view(list(embedding.shape[:-1]) + [3])
+            .to(embedding)
+        )
+        return rgb
+
 
     def forward(
         self,

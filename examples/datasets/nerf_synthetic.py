@@ -1,5 +1,5 @@
 """
-Copyright (c) 2022 Ruilong Li, UC Berkeley.
+Dataset loader, no need to change this file, SubjectLoader class
 """
 
 import collections
@@ -14,6 +14,7 @@ import torch.nn.functional as F
 from .utils import Rays
 
 
+# Opens .json file, returns cam to world transformation matrix (Extrinsic), images and focal length
 def _load_renderings(root_fp: str, subject_id: str, split: str):
     """Load images from disk."""
     if not root_fp.startswith("/"):
@@ -49,7 +50,7 @@ def _load_renderings(root_fp: str, subject_id: str, split: str):
 
     return images, camtoworlds, focal
 
-
+# Data loader
 class SubjectLoader(torch.utils.data.Dataset):
     """Single subject data loader for training and evaluation."""
 
@@ -83,7 +84,7 @@ class SubjectLoader(torch.utils.data.Dataset):
         super().__init__()
         assert split in self.SPLITS, "%s" % split
         assert subject_id in self.SUBJECT_IDS, "%s" % subject_id
-        assert color_bkgd_aug in ["white", "black", "random"]
+        assert color_bkgd_aug in ["white", "black", "random"] # color, background augmentation
         self.split = split
         self.num_rays = num_rays
         self.near = self.NEAR if near is None else near
@@ -93,6 +94,7 @@ class SubjectLoader(torch.utils.data.Dataset):
         )
         self.color_bkgd_aug = color_bkgd_aug
         self.batch_over_images = batch_over_images
+        #get images, transfromation matrices
         if split == "trainval":
             _images_train, _camtoworlds_train, _focal_train = _load_renderings(
                 root_fp, subject_id, "train"
@@ -109,8 +111,11 @@ class SubjectLoader(torch.utils.data.Dataset):
             self.images, self.camtoworlds, self.focal = _load_renderings(
                 root_fp, subject_id, split
             )
+        #images
         self.images = torch.from_numpy(self.images).to(torch.uint8)
+        #extrinsics
         self.camtoworlds = torch.from_numpy(self.camtoworlds).to(torch.float32)
+        #intrinsic
         self.K = torch.tensor(
             [
                 [self.focal, 0, self.WIDTH / 2.0],
@@ -130,7 +135,7 @@ class SubjectLoader(torch.utils.data.Dataset):
         data = self.preprocess(data)
         return data
 
-    def preprocess(self, data):
+    def preprocess(self, data): #Perform alpha composting to get pixels
         """Process the fetched / cached data with randomness."""
         rgba, rays = data["rgba"], data["rays"]
         pixels, alpha = torch.split(rgba, [3, 1], dim=-1)
@@ -146,6 +151,7 @@ class SubjectLoader(torch.utils.data.Dataset):
             # just use white during inference
             color_bkgd = torch.ones(3, device=self.images.device)
 
+        # alpha composting
         pixels = pixels * alpha + color_bkgd * (1.0 - alpha)
         return {
             "pixels": pixels,  # [n_rays, 3] or [h, w, 3]
@@ -157,7 +163,7 @@ class SubjectLoader(torch.utils.data.Dataset):
     def update_num_rays(self, num_rays):
         self.num_rays = num_rays
 
-    def fetch_data(self, index):
+    def fetch_data(self, index): #original fetch data
         """Fetch the data (it maybe cached for multiple batches)."""
         num_rays = self.num_rays
 
@@ -187,9 +193,11 @@ class SubjectLoader(torch.utils.data.Dataset):
             x = x.flatten()
             y = y.flatten()
 
-        # generate rays
+        # generate get all the points of that ray in an image, transformation matrix and camera directions
         rgba = self.images[image_id, y, x] / 255.0  # (num_rays, 4)
         c2w = self.camtoworlds[image_id]  # (num_rays, 3, 4)
+
+        #pad with value -1 or +1 (Default OPENGL CAMERA  = -1)
         camera_dirs = F.pad(
             torch.stack(
                 [
@@ -220,8 +228,9 @@ class SubjectLoader(torch.utils.data.Dataset):
             viewdirs = torch.reshape(viewdirs, (self.HEIGHT, self.WIDTH, 3))
             rgba = torch.reshape(rgba, (self.HEIGHT, self.WIDTH, 4))
 
-        rays = Rays(origins=origins, viewdirs=viewdirs)
+        rays = Rays(origins=origins, viewdirs=viewdirs) # get as named tuple
 
+        #returns rgb alpha values and rays
         return {
             "rgba": rgba,  # [h, w, 4] or [num_rays, 4]
             "rays": rays,  # [h, w, 3] or [num_rays, 3]

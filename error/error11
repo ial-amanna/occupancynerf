@@ -1,0 +1,10 @@
+Traceback (most recent call last):
+  File "/cluster/home/alakshmanan/sem_proj/nerfacc2/nerfacc/examples/train_ngp_nerf.py", line 599, in <module>
+    new_render(args, device)
+  File "/cluster/home/alakshmanan/sem_proj/nerfacc2/nerfacc/examples/train_ngp_nerf.py", line 514, in new_render
+    print(torchvision.transforms.functional.rgb_to_grayscale(pixels).shape)
+  File "/cluster/scratch/alakshmanan/miniconda3/envs/nerfacc/lib/python3.9/site-packages/torchvision/transforms/functional.py", line 1279, in rgb_to_grayscale
+    return F_t.rgb_to_grayscale(img, num_output_channels)
+  File "/cluster/scratch/alakshmanan/miniconda3/envs/nerfacc/lib/python3.9/site-packages/torchvision/transforms/functional_tensor.py", line 152, in rgb_to_grayscale
+    raise TypeError(f"Input image tensor should have at least 3 dimensions, but found {img.ndim}")
+TypeError: Input image tensor should have at least 3 dimensions, but found 2

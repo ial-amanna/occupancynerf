@@ -1,0 +1,23 @@
+NewESDF(
+  (direction_encoding): Encoding(n_input_dims=3, n_output_dims=16, seed=1337, dtype=torch.float16, hyperparams={'nested': [{'degree': 4, 'otype': 'SphericalHarmonics'}], 'otype': 'Composite'})
+  (mlp_base_1): Encoding(n_input_dims=3, n_output_dims=32, seed=1337, dtype=torch.float16, hyperparams={'base_resolution': 16, 'hash': 'CoherentPrime', 'interpolation': 'Linear', 'log2_hashmap_size': 19, 'n_features_per_level': 2, 'n_levels': 16, 'otype': 'Grid', 'per_level_scale': 1.4472692012786865, 'type': 'Hash'})
+  (mlp_base_2): Network(n_input_dims=32, n_output_dims=16, seed=1337, dtype=torch.float16, hyperparams={'encoding': {'offset': 0.0, 'otype': 'Identity', 'scale': 1.0}, 'network': {'activation': 'ReLU', 'n_hidden_layers': 1, 'n_neurons': 64, 'otype': 'FullyFusedMLP', 'output_activation': 'ReLU'}, 'otype': 'NetworkWithInputEncoding'})
+  (mlp_base_3): Network(n_input_dims=21, n_output_dims=16, seed=1337, dtype=torch.float16, hyperparams={'encoding': {'offset': 0.0, 'otype': 'Identity', 'scale': 1.0}, 'network': {'activation': 'ReLU', 'n_hidden_layers': 1, 'n_neurons': 16, 'otype': 'FullyFusedMLP', 'output_activation': 'None'}, 'otype': 'NetworkWithInputEncoding'})
+  (mlp_base): Sequential(
+    (0): Encoding(n_input_dims=3, n_output_dims=32, seed=1337, dtype=torch.float16, hyperparams={'base_resolution': 16, 'hash': 'CoherentPrime', 'interpolation': 'Linear', 'log2_hashmap_size': 19, 'n_features_per_level': 2, 'n_levels': 16, 'otype': 'Grid', 'per_level_scale': 1.4472692012786865, 'type': 'Hash'})
+    (1): Network(n_input_dims=32, n_output_dims=16, seed=1337, dtype=torch.float16, hyperparams={'encoding': {'offset': 0.0, 'otype': 'Identity', 'scale': 1.0}, 'network': {'activation': 'ReLU', 'n_hidden_layers': 1, 'n_neurons': 64, 'otype': 'FullyFusedMLP', 'output_activation': 'ReLU'}, 'otype': 'NetworkWithInputEncoding'})
+  )
+  (mlp_head): Network(n_input_dims=31, n_output_dims=3, seed=1337, dtype=torch.float16, hyperparams={'encoding': {'offset': 0.0, 'otype': 'Identity', 'scale': 1.0}, 'network': {'activation': 'ReLU', 'n_hidden_layers': 2, 'n_neurons': 64, 'otype': 'FullyFusedMLP', 'output_activation': 'Sigmoid'}, 'otype': 'NetworkWithInputEncoding'})
+)
+OrderedDict([('aabb', tensor([-1.5000, -1.5000, -1.5000,  1.5000,  1.5000,  1.5000], device='cuda:0')), ('direction_encoding.params', tensor([], device='cuda:0')), ('mlp_base_1.params', tensor([-0.0484,  0.0282, -0.0131,  ..., -0.7322,  0.2263, -0.6733],
+       device='cuda:0')), ('mlp_base_2.params', tensor([-0.1818, -0.3706, -0.1070,  ..., -0.3561,  0.2090,  0.1160],
+       device='cuda:0')), ('mlp_base.0.params', tensor([-0.0484,  0.0282, -0.0131,  ..., -0.7322,  0.2263, -0.6733],
+       device='cuda:0')), ('mlp_base.1.params', tensor([-0.1818, -0.3706, -0.1070,  ..., -0.3561,  0.2090,  0.1160],
+       device='cuda:0')), ('mlp_head.params', tensor([-0.0392,  0.2600, -0.4107,  ...,  0.1992,  0.1307,  0.0220],
+       device='cuda:0'))])
+Model done so far
+elapsed_time=3.38s | step=0 | loss=0.16955 | alive_ray_mask=256 | n_rendering_samples=121218 | num_rays=256 |
+elapsed_time=148.71s | step=10000 | loss=0.00057 | alive_ray_mask=17362 | n_rendering_samples=245898 | num_rays=51884 |
+elapsed_time=297.30s | step=20000 | loss=0.00043 | alive_ray_mask=18440 | n_rendering_samples=262363 | num_rays=56387 |
+evaluation: psnr_avg=nan
+training stops

@@ -271,7 +271,37 @@ def main_model(args, device):
             if step == max_steps:
                 # evaluation
                 radiance_field.eval()
-                torch.save(radiance_field.state_dict(), "radiance_field.pt")
+                # torch.save(radiance_field.state_dict(), "radiance_field.pt")
+                
+                occupancy_values_0 = occupancy_grid.query_occ(torch.tensor([[m, n, 0] for m in range(1000) for n in range(1000)], dtype=torch.float32, device = device))
+                occupancy_values_50 = occupancy_grid.query_occ(torch.tensor([[m, n, 50.0] for m in range(1000) for n in range(1000)], dtype=torch.float32, device = device))
+                occupancy_values_100 = occupancy_grid.query_occ(torch.tensor([[m, n, 100.0] for m in range(1000) for n in range(1000)], dtype=torch.float32, device = device))
+                occupancy_values_300 = occupancy_grid.query_occ(torch.tensor([[m, n, 300.0] for m in range(1000) for n in range(1000)], dtype=torch.float32, device = device))
+                occupancy_values_500 = occupancy_grid.query_occ(torch.tensor([[m, n, 500.0] for m in range(1000) for n in range(1000)], dtype=torch.float32, device = device))
+
+
+                print(max(occupancy_values_50)*255)
+                print(max(occupancy_values_100)*255)
+
+                print(max(occupancy_values_300)*255)
+                print(max(occupancy_values_500)*255)
+                map_output_0 = np.ones((1000,1000))
+                map_output_50 = np.ones((1000,1000))
+                map_output_100 = np.ones((1000,1000))
+
+                map_output_300 = np.ones((1000,1000))
+                map_output_500 = np.ones((1000,1000))
+
+                count = 0
+                for i in range(1000):
+                    for j in range(1000):
+                        map_output_0[i][j] = occupancy_values_0[count]
+                        map_output_50[i][j] = occupancy_values_50[count]
+                        map_output_100[i][j] = occupancy_values_100[count]
+                        map_output_300[i][j] = occupancy_values_300[count]
+                        map_output_500[i][j] = occupancy_values_500[count]
+                        count+=1
+
 
                 psnrs = []
                 with torch.no_grad():
@@ -303,15 +333,36 @@ def main_model(args, device):
                         psnr = -10.0 * torch.log(mse) / np.log(10.0)
                         psnrs.append(psnr.item())
 
+                        if i == 0:
+                            imageio.imwrite(
+                                "acc_binary_test2.png",
+                                ((acc > 0).float().cpu().numpy() * 255).astype(np.uint8),
+                            )
+                            imageio.imwrite(
+                                "rgb_test2.png",
+                                (rgb.cpu().numpy() * 255).astype(np.uint8),
+                            )
+                            break
                         # if i == 0:
                         #     imageio.imwrite(
-                        #         "acc_binary_test2.png",
-                        #         ((acc > 0).float().cpu().numpy() * 255).astype(np.uint8),
+                        #         "occupancy_map_0.png",
+                        #         ((map_output_0)* 255).astype(np.uint8)
                         #     )
-                        #     print(f"evaluation_elapsed_time=", final_rendering_time, flush = True)
                         #     imageio.imwrite(
-                        #         "rgb_test2.png",
-                        #         (rgb.cpu().numpy() * 255).astype(np.uint8),
+                        #         "occupancy_map_50.png",
+                        #         ((map_output_50)* 255).astype(np.uint8)
+                        #     )
+                        #     imageio.imwrite(
+                        #         "occupancy_map_100.png",
+                        #         ((map_output_100)* 255).astype(np.uint8)
+                        #     )
+                        #     imageio.imwrite(
+                        #         "occupancy_map_300.png",
+                        #         ((map_output_300)* 255).astype(np.uint8)
+                        #     )
+                        #     imageio.imwrite(
+                        #         "occupancy_map_500.png",
+                        #         ((map_output_500)* 255).astype(np.uint8)
                         #     )
                         #     break
 
@@ -411,7 +462,7 @@ def new_render(args, device):
 
 
     # load the new model
-    radius_encoded = 5.0
+    radius_encoded = 2.0
 
     #new model is the model trained by the new code, try to sample points on a plane and query the distance,
     new_model = NewESDF(aabb=args.aabb,
@@ -483,7 +534,6 @@ def new_render(args, device):
 
             # update occupancy grid
             occupancy_grid.every_n_step(step=step, occ_eval_fn=occ_eval_fn)
-
             # render
             rgb, acc, depth, n_rendering_samples = render_image(
                 new_model,
@@ -508,12 +558,9 @@ def new_render(args, device):
                 * (target_sample_batch_size / float(n_rendering_samples))
             )
             train_dataset.update_num_rays(num_rays)
-            # alive_ray_mask = acc.squeeze(-1) > 0
-            print(acc.shape)
-            print(pixels.shape)
-            print(torchvision.transforms.functional.rgb_to_grayscale(pixels).shape)
+            alive_ray_mask = acc.squeeze(-1) > 0
             # compute loss
-            loss = F.binary_cross_entropy_with_logits(acc, torchvision.transforms.functional.rgb_to_grayscale(pixels))
+            loss = F.binary_cross_entropy_with_logits(rgb, pixels)
 
             optimizer.zero_grad()
             # do not unscale it because we are using Adam.
@@ -523,7 +570,7 @@ def new_render(args, device):
 
             if step % 10000 == 0:
                 elapsed_time = time.time() - tic
-                # loss = F.mse_loss(rgb[alive_ray_mask], pixels[alive_ray_mask])
+                loss = F.mse_loss(rgb[alive_ray_mask], pixels[alive_ray_mask])
                 print(
                     f"elapsed_time={elapsed_time:.2f}s | step={step} | "
                     f"loss={loss:.5f} | "
@@ -535,9 +582,47 @@ def new_render(args, device):
             if step == max_steps:
                 # evaluation
                 new_model.eval()
-                torch.save(new_model.state_dict(), "new_model.pt")
+                # torch.save(new_model.state_dict(), "new_model.pt")
+                
+                #get the occupancy values given dimensions (1000x1000)
+                
+                occupancy_values_0 = occupancy_grid.query_occ(torch.tensor([[m, n, 0] for m in range(128) for n in range(128)], dtype=torch.float32, device = device))
+                occupancy_values_20 = occupancy_grid.query_occ(torch.tensor([[m, n, 20.0] for m in range(128) for n in range(128)], dtype=torch.float32, device = device))
+                occupancy_values_40 = occupancy_grid.query_occ(torch.tensor([[m, n, 40.0] for m in range(128) for n in range(128)], dtype=torch.float32, device = device))
+                occupancy_values_60 = occupancy_grid.query_occ(torch.tensor([[m, n, 60.0] for m in range(128) for n in range(128)], dtype=torch.float32, device = device))
+                occupancy_values_80 = occupancy_grid.query_occ(torch.tensor([[m, n, 80.0] for m in range(128) for n in range(128)], dtype=torch.float32, device = device))
+                
+                map_output_0 = np.ones((128,128))
+                map_output_20 = np.ones((128,128))
+                map_output_40 = np.ones((128,128))
 
-                psnrs = []
+                map_output_60 = np.ones((128,128))
+                map_output_80 = np.ones((128,128))
+
+                count = 0
+                for i in range(128):
+                    for j in range(128):
+                        map_output_0[i][j] = occupancy_values_0[count]
+                        map_output_20[i][j] = occupancy_values_20[count]
+                        map_output_40[i][j] = occupancy_values_40[count]
+                        map_output_60[i][j] = occupancy_values_60[count]
+                        map_output_80[i][j] = occupancy_values_80[count]
+                        count+=1
+
+                print(max(map_output_0))
+                print(max(map_output_20))
+                
+                print(max(map_output_40))
+                print(max(map_output_60))
+                print(max(map_output_80))
+                
+                map_output_0 /= max(map_output_0)
+                map_output_20 /= max(map_output_20)
+                map_output_40 /= max(map_output_40)
+                map_output_60 /= max(map_output_60)
+                map_output_80 /= max(map_output_80)
+
+
                 with torch.no_grad():
                     for i in tqdm.tqdm(range(len(test_dataset))):
                         data = test_dataset[i]
@@ -545,7 +630,6 @@ def new_render(args, device):
                         rays = data["rays"]
                         pixels = data["pixels"]
 
-                        # rendering_tic = time.time()
                         # rendering
                         rgb, acc, depth, _ = render_image(
                             new_model,
@@ -562,20 +646,28 @@ def new_render(args, device):
                             # test options
                             test_chunk_size=args.test_chunk_size,
                         )
-                        # final_rendering_time = time.time() - rendering_tic
-                        # mse = F.mse_loss(rgb, pixels)
-                        # psnr = -10.0 * torch.log(mse) / np.log(10.0)
-                        # psnrs.append(psnr.item())
+
 
                         if i == 0:
                             imageio.imwrite(
-                                "images/acc_2_0_bce.png",
-                                (acc.float().cpu().numpy() * 255).astype(np.uint8),
+                                "occupancy_map_0.png",
+                                ((map_output_0)* 255).astype(np.uint8)
                             )
-
                             imageio.imwrite(
-                                "images/rgb_2_0_bce.png",
-                                (rgb.cpu().numpy() * 255).astype(np.uint8),
+                                "occupancy_map_20.png",
+                                ((map_output_20)* 255).astype(np.uint8)
+                            )
+                            imageio.imwrite(
+                                "occupancy_map_40.png",
+                                ((map_output_40)* 255).astype(np.uint8)
+                            )
+                            imageio.imwrite(
+                                "occupancy_map_60.png",
+                                ((map_output_60)* 255).astype(np.uint8)
+                            )
+                            imageio.imwrite(
+                                "occupancy_map_80.png",
+                                ((map_output_80)* 255).astype(np.uint8)
                             )
                             break
 

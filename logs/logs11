@@ -1,2 +1,1 @@
-torch.Size([256, 1])
-torch.Size([256, 3])
+elapsed_time=12.57s | step=0 | loss=0.09737 | n_rendering_samples=79757 | num_rays=256 |

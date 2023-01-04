@@ -9,5 +9,5 @@
 #SBATCH --gpus=rtx_3090:1
 #SBATCH --gres=gpumem:16G
 
-/cluster/scratch/alakshmanan/miniconda3/envs/nerfacc/bin/python /cluster/home/alakshmanan/sem_proj/nerfacc2/nerfacc/examples/train_ngp_nerf.py
+/cluster/scratch/alakshmanan/miniconda3/envs/nerfacc/bin/python /cluster/home/alakshmanan/sem_proj/nerfacc2/occupanynerf/examples/train_ngp_nerf.py
 

@@ -337,14 +337,14 @@ class NewESDF(torch.nn.Module):
         # print("new_tensor", self.new_tensor.shape, flush=True)
         # print("old_tensor",self.mlp_base(x.view(-1, self.num_dim)).shape, flush=True)
 
-        if self.new_tensor.shape[0] == 1:
-            self.new_tensor = self.new_tensor.expand(x.shape[0], 5)
-        else:
-            self.new_tensor = self.new_tensor.mean(dim=0)
-            self.new_tensor = self.new_tensor.expand(x.shape[0], 5)
-
+        # if self.new_tensor.shape[0] == 1:
+        #     self.new_tensor = self.new_tensor.expand(x.shape[0], 5)
+        # else:
+        #     self.new_tensor = self.new_tensor.mean(dim=0)
+        #     self.new_tensor = self.new_tensor.expand(x.shape[0], 5)
+        temp_tensor = self.new_tensor.expand(x.shape[0], 5)
         x = (
-            self.mlp_base_3(torch.cat((self.mlp_base(x.view(-1, self.num_dim)), self.new_tensor), dim=1))
+            self.mlp_base_3(torch.cat((self.mlp_base(x.view(-1, self.num_dim)), temp_tensor), dim=1))
             .view(list(x.shape[:-1]) + [1 + self.geo_feat_dim])
             .to(x)
         )

@@ -227,6 +227,7 @@ class NewESDF(torch.nn.Module):
     def __init__(
         self,
         aabb: Union[torch.Tensor, List[float]],
+        new_tensor: torch.Tensor, #torch.full((1, 5), 1.0, dtype=torch.float32)
         num_dim: int = 3,
         use_viewdirs: bool = True,
         density_activation: Callable = lambda x: trunc_exp(x - 1),
@@ -235,7 +236,6 @@ class NewESDF(torch.nn.Module):
         geo_feat_dim: int = 15,
         n_levels: int = 16,
         log2_hashmap_size: int = 19,
-        new_tensor: torch.Tensor = torch.full((1, 5), 25.0, dtype=torch.float32)
     ) -> None:
         super().__init__()
         if not isinstance(aabb, torch.Tensor):
@@ -264,7 +264,6 @@ class NewESDF(torch.nn.Module):
                             "otype": "SphericalHarmonics",
                             "degree": 4,
                         },
-                        # {"otype": "Identity", "n_bins": 4, "degree": 4},
                     ],
                 },
             )
@@ -386,5 +385,5 @@ class NewESDF(torch.nn.Module):
                 positions.shape == directions.shape
             ), f"{positions.shape} v.s. {directions.shape}"
             density, embedding = self.query_density(positions, return_feat=True)
-            rgb = self._query_rgb(directions, embedding=embedding)
-        return rgb, density
+            # rgb = self._query_rgb(directions, embedding=embedding)
+        return density

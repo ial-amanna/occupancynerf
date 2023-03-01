@@ -61,7 +61,7 @@ sbatch jobscript.sh
 
 # for debugging
 srun --ntasks=8 --mem-per-cpu=16G --gpus=rtx_3090:1 --pty bash
-/cluster/home/{eth_username}/miniconda3/envs/instant_ngp/bin/python train_ngp_nerf.py
+/cluster/home/{eth_username}/miniconda3/envs/instant_ngp/bin/python train_instant_ngp.py
 
 
 # daily use

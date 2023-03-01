@@ -10,6 +10,6 @@
 #SBATCH --gres=gpumem:16G
 
 
-/cluster/scratch/alakshmanan/miniconda3/envs/occupancy/bin/python /cluster/home/alakshmanan/sem_proj/nerfacc2/occupanynerf/train_ngp_nerf.py --radius_encoded=0.1
+/cluster/scratch/alakshmanan/miniconda3/envs/occupancy/bin/python /cluster/home/alakshmanan/sem_proj/nerfacc2/occupanynerf/train_instant_ngp.py --radius_encoded=0.1
 # /cluster/scratch/alakshmanan/miniconda3/envs/occupancy/bin/python /cluster/home/alakshmanan/sem_proj/nerfacc2/occupanynerf/get_esdf.py
 # /cluster/scratch/alakshmanan/miniconda3/envs/occupancy/bin/python /cluster/home/alakshmanan/sem_proj/nerfacc2/occupanynerf/get_metrics.py

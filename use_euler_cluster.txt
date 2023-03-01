@@ -1,0 +1,79 @@
+# log in to Euler
+ssh {eth_username}@euler.ethz.ch
+
+
+# install Miniconda (only once)
+wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh
+chmod +x Miniconda3-latest-Linux-x86_64.sh
+./Miniconda3-latest-Linux-x86_64.sh
+
+
+!!! IMPORTANT !!! choose the following directory while installing: /cluster/home/{eth_username}/miniconda3
+rm -rf Miniconda3-latest-Linux-x86_64.sh
+
+Close your current terminal, open a new terminal and log in to Euler again
+
+# set up git credentials on Euler, download the repository, and download the dataset and store in the datasets folder
+
+ssh-keygen
+cat /cluster/home/{eth_username}/.ssh/id_rsa.pub  (take the output and add it to your Github account/SSH keys)
+
+# add these in .bashrc file
+module load gcc/8.2.0 python/3.9.9 cuda/11.6.2
+export PATH=$PATH:"$HOME/.local/bin"
+
+
+# clone the repository
+mkdir instant_ngp
+cd instant_ngp
+git clone git@github.com:
+
+# create conda environment (only once)
+conda create -n instant_ngp python=3.9 -y
+conda activate instant_ngp
+conda install pytorch torchvision torchaudio pytorch-cuda=11.6 -c pytorch -c nvidia
+python3 -m pip install nerfacc
+
+# other deps
+conda install -c conda-forge tqdm opencv imageio
+conda install -c anaconda scipy
+python3 -m pip install -e .
+
+# check if cuda is properly there using the below commands, else install
+srun --ntasks=8 --mem-per-cpu=16G --gpus=rtx_3090:1 --pty bash
+nvcc -V
+nvidia-smi
+
+
+
+# install tiny cudnn in another folder
+cd ..
+git clone --recursive https://github.com/nvlabs/tiny-cuda-nn
+cd tiny-cuda-nn
+srun --ntasks=8 --mem-per-cpu=16G --gpus=rtx_3090:1 --pty bash
+/cluster/home/{eth_username}/miniconda3/envs/instant_ngp/bin/python setup.py install
+
+
+# test the model
+cd ~/instant_ngp
+sbatch jobscript.sh
+
+
+# for debugging
+srun --ntasks=8 --mem-per-cpu=16G --gpus=rtx_3090:1 --pty bash
+/cluster/home/{eth_username}/miniconda3/envs/instant_ngp/bin/python train_ngp_nerf.py
+
+
+# daily use
+ssh {eth_username}@euler.ethz.ch
+cd instant_ngp
+conda activate instant_ngp
+sbatch jobscript.sh
+
+
+# commands for the job submitted
+squeue # to check the status of jobs
+scancel {job-id} # to cancel the job
+
+
+# check the jobscript.sh file for more info on how to assign jobs 

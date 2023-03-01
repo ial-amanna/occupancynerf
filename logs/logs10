@@ -1,4 +1,0 @@
-elapsed_time=3.81s | step=0 | loss=0.14553 | alive_ray_mask=256 | n_rendering_samples=121218 | num_rays=256 |
-elapsed_time=147.77s | step=10000 | loss=0.00066 | alive_ray_mask=18323 | n_rendering_samples=247107 | num_rays=54829 |
-elapsed_time=294.01s | step=20000 | loss=0.00046 | alive_ray_mask=18987 | n_rendering_samples=263565 | num_rays=57916 |
-training stops

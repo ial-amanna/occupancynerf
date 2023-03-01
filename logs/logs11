@@ -1,9 +1,0 @@
-elapsed_time=2.41s | step=0 | loss=0.08257 | n_rendering_samples=74085 | num_rays=256 |
-elapsed_time=111.06s | step=10000 | loss=0.02620 | n_rendering_samples=273418 | num_rays=849 |
-elapsed_time=227.61s | step=20000 | loss=0.02173 | n_rendering_samples=256087 | num_rays=798 |
-0.005074367392808199
-0.005074367392808199
-0.005074367392808199
-0.005074367392808199
-0.005074367392808199
-training stops

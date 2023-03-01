@@ -1,0 +1,2 @@
+/cluster/home/alakshmanan/sem_proj/nerfacc2/occupanynerf/train_ngp_nerf.py:425: UserWarning: To copy construct from a tensor, it is recommended to use sourceTensor.clone().detach() or sourceTensor.clone().detach().requires_grad_(True), rather than torch.tensor(sourceTensor).
+  index_tensor = torch.tensor(points_for_old_occupancy, device = device, dtype = torch.long)

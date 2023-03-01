@@ -1,0 +1,3 @@
+elapsed_time=0.01s | step=0 | loss=0.92997 | 
+elapsed_time=0.44s | step=100 | loss=81.13020 | 
+training stops
